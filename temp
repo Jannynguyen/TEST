@@ -1,0 +1,103 @@
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'member') DEFAULT 'member',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE business_units (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE projects (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(200) NOT NULL,
+    description TEXT,
+    bu_id INT,
+    status ENUM('active', 'completed', 'on-hold') DEFAULT 'active',
+    start_date DATE,
+    end_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (bu_id) REFERENCES business_units(id) ON DELETE SET NULL
+);
+
+CREATE TABLE tasks (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    request_no VARCHAR(50) UNIQUE NOT NULL,
+    bu_id INT,
+    project_id INT,
+    email_title VARCHAR(255) NOT NULL,
+    user VARCHAR(100) NOT NULL,
+    owner_id INT,
+    description TEXT,
+    status ENUM('pending', 'in-progress', 'completed', 'blocked') DEFAULT 'pending',
+    priority ENUM('low', 'medium', 'high') DEFAULT 'medium',
+    date_assigned DATE,
+    date_completed DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (bu_id) REFERENCES business_units(id) ON DELETE SET NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE task_history (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    task_id INT,
+    changed_field VARCHAR(50),
+    old_value TEXT,
+    new_value TEXT,
+    changed_by INT,
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+INSERT INTO business_units (name, description) VALUES
+('IT', 'Information Technology Department'),
+('HR', 'Human Resources Department'),
+('Finance', 'Finance and Accounting Department'),
+('Marketing', 'Marketing and Sales Department'),
+('Operations', 'Operations and Logistics Department');
+
+INSERT INTO users (name, email, password, role) VALUES
+('John Doe', 'john.doe@company.com', 'hashed_password_1', 'admin'),
+('Jane Smith', 'jane.smith@company.com', 'hashed_password_2', 'member'),
+('Mike Johnson', 'mike.johnson@company.com', 'hashed_password_3', 'member'),
+('Sarah Williams', 'sarah.williams@company.com', 'hashed_password_4', 'member'),
+('David Brown', 'david.brown@company.com', 'hashed_password_5', 'member');
+
+INSERT INTO projects (name, description, bu_id, status, start_date, end_date) VALUES
+('Website Redesign', 'Complete redesign of company website', 1, 'active', '2023-01-15', '2023-06-30'),
+('Recruitment Drive', 'Q2 recruitment campaign', 2, 'active', '2023-02-01', '2023-03-31'),
+('Budget Planning', 'Annual budget planning for 2024', 3, 'in-progress', '2023-03-01', '2023-05-15'),
+('Product Launch', 'New product marketing campaign', 4, 'active', '2023-04-01', '2023-07-31'),
+('Process Optimization', 'Streamlining operational processes', 5, 'on-hold', '2023-01-01', NULL);
+
+SELECT t.request_no, bu.name as bu_name, p.name as project_name, 
+       t.email_title, t.user, u.name as owner, t.description, t.status
+FROM tasks t
+LEFT JOIN business_units bu ON t.bu_id = bu.id
+LEFT JOIN projects p ON t.project_id = p.id
+LEFT JOIN users u ON t.owner_id = u.id
+WHERE t.date_assigned = CURDATE()
+ORDER BY t.created_at DESC;
+
+SELECT status, COUNT(*) as count
+FROM tasks
+WHERE date_assigned = CURDATE()
+GROUP BY status;
+
+SELECT t.request_no, bu.name as bu_name, p.name as project_name, 
+       t.email_title, t.user, u.name as owner, t.description, t.status,
+       t.priority, t.date_assigned, t.date_completed
+FROM tasks t
+LEFT JOIN business_units bu ON t.bu_id = bu.id
+LEFT JOIN projects p ON t.project_id = p.id
+LEFT JOIN users u ON t.owner_id = u.id
+ORDER BY t.date_assigned DESC, t.priority DESC;
